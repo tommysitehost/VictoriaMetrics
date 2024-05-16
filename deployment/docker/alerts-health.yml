@@ -87,3 +87,7 @@ groups:
             In some cases for components like vmagent or vminsert the alert might trigger if there are too many clients
             making write attempts. If vmagent's or vminsert's CPU usage and network saturation are at normal level, then 
             it might be worth adjusting `-maxConcurrentInserts` cmd-line flag."
+      - alert: alwaysFiring
+        expr: 1
+        labels:
+          severity: critical

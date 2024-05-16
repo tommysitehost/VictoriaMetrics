@@ -16,6 +16,11 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
+      - "-envflag.enable=true"
+      - "-envflag.prefix=VM_"
+    environment:
+      - VM_remoteWrite_basicAuth_username=admin
+      - VM_remoteWrite_basicAuth_password=pass
     networks:
       - vm_net
     restart: always
@@ -40,6 +45,8 @@ services:
       - "--httpListenAddr=:8428"
       - "--influxListenAddr=:8089"
       - "--vmalert.proxyURL=http://vmalert:8880"
+      - "-httpAuth.username=admin"
+      - "-httpAuth.password=pass"
     networks:
       - vm_net
     restart: always
@@ -77,12 +84,21 @@ services:
       - ./alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+    environment:
+      - VM_remoteWrite_basicAuth_username=admin
+      - VM_remoteWrite_basicAuth_password=pass
+      - VM_remoteRead_basicAuth_username=admin
+      - VM_remoteRead_basicAuth_password=pass
+      - VM_datasource_basicAuth_username=admin
+      - VM_datasource_basicAuth_password=pass
     command:
       - "--datasource.url=http://victoriametrics:8428/"
       - "--remoteRead.url=http://victoriametrics:8428/"
       - "--remoteWrite.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
+      - "-envflag.enable=true"
+      - "-envflag.prefix=VM_"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
