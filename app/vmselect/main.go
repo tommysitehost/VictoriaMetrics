@@ -12,8 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
@@ -35,7 +38,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -161,6 +163,7 @@ func main() {
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}
+	multitenant.Stop()
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
