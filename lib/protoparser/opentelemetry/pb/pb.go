@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/easyproto"
 )
 
@@ -278,6 +279,8 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			if err := m.Summary.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Summary: %w", err)
 			}
+		default:
+			logger.Warnf("unsupported metric type with field %d", fc.FieldNum)
 		}
 	}
 	return nil
