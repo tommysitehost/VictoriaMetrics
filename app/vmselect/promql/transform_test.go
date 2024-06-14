@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,6 +11,169 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
+
+func TestQunatile(t *testing.T) {
+	// Calculate quantile for each group in m
+	lastNonInf := func(_ int, xss []leTimeseries) float64 {
+		for len(xss) > 0 {
+			xsLast := xss[len(xss)-1]
+			if !math.IsInf(xsLast.le, 0) {
+				return xsLast.le
+			}
+			xss = xss[:len(xss)-1]
+		}
+		return nan
+	}
+	quantile := func(i int, phis []float64, xss []leTimeseries) (q, lower, upper float64) {
+		phi := phis[i]
+		if math.IsNaN(phi) {
+			return nan, nan, nan
+		}
+		fixBrokenBuckets(i, xss)
+		vLast := float64(0)
+		if len(xss) > 0 {
+			vLast = xss[len(xss)-1].ts.Values[i]
+		}
+		if vLast == 0 {
+			return nan, nan, nan
+		}
+		if phi < 0 {
+			return -inf, -inf, xss[0].ts.Values[i]
+		}
+		if phi > 1 {
+			return inf, vLast, inf
+		}
+		vReq := vLast * phi
+		vPrev := float64(0)
+		lePrev := float64(0)
+		for _, xs := range xss {
+			v := xs.ts.Values[i]
+			le := xs.le
+			if v <= 0 {
+				// Skip zero buckets.
+				lePrev = le
+				continue
+			}
+			if v < vReq {
+				vPrev = v
+				lePrev = le
+				continue
+			}
+			if math.IsInf(le, 0) {
+				break
+			}
+			if v == vPrev {
+				return lePrev, lePrev, v
+			}
+			vv := lePrev + (le-lePrev)*(vReq-vPrev)/(v-vPrev)
+			return vv, lePrev, le
+		}
+		vv := lastNonInf(i, xss)
+		return vv, vv, inf
+	}
+
+	f := func(les, values []float64) {
+		xss := make([]leTimeseries, len(values))
+		for i, v := range values {
+			xss[i].ts = &timeseries{
+				Values: []float64{v},
+			}
+			xss[i].le = les[i]
+		}
+		fixBrokenBuckets(0, xss)
+		res, _, _ := quantile(0, []float64{0.99}, xss)
+		fmt.Println("<<", res)
+	}
+	f([]float64{
+		0.005,
+		0.01,
+		0.025,
+		0.05,
+		0.075,
+		0.1,
+		0.25,
+		0.5,
+		0.75,
+		1,
+		2.5,
+		5,
+		7.5,
+		10,
+		math.Inf(0),
+	},
+		[]float64{2,
+			2,
+			3.45484949832,
+			3.47157190635,
+			3.47157190635,
+			3.47157190635,
+			3.47157190635,
+			3.47157190635,
+			3.41806020066,
+			3.47157190635,
+			3.47157190635,
+			3.41806020066,
+			3.41806020066,
+			3.41806020066,
+			3.47157190635})
+}
+
+func TestFixBrokenBuckets2(t *testing.T) {
+	f := func(values, expectedResult []float64) {
+		t.Helper()
+		xss := make([]leTimeseries, len(values))
+		for i, v := range values {
+			xss[i].ts = &timeseries{
+				Values: []float64{v},
+			}
+		}
+		fixBrokenBuckets2(0, xss)
+		result := make([]float64, len(values))
+		for i, xs := range xss {
+			result[i] = xs.ts.Values[0]
+		}
+		if !reflect.DeepEqual(result, expectedResult) {
+			t.Fatalf("unexpected result for values=%v\ngot\n%v\nwant\n%v", values, result, expectedResult)
+		}
+	}
+	f(nil, []float64{})
+	f([]float64{1}, []float64{1})
+	f([]float64{1, 2}, []float64{1, 2})
+	f([]float64{2, 1}, []float64{2, 2})
+	f([]float64{1, 2, 3, nan, nan}, []float64{1, 2, 3, 3, 3})
+	f([]float64{5, 1, 2, 3, nan}, []float64{5, 5, 5, 5, 5})
+	f([]float64{1, 5, 2, nan, 6, 3}, []float64{1, 5, 5, 5, 6, 6})
+	f([]float64{5, 10, 4, 3}, []float64{5, 10, 10, 10})
+	f([]float64{2,
+		2,
+		3.45484949832,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.41806020066,
+		3.47157190635,
+		3.47157190635,
+		3.41806020066,
+		3.41806020066,
+		3.41806020066,
+		3.47157190635}, []float64{2,
+		2,
+		3.45484949832,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635})
+}
 
 func TestFixBrokenBuckets(t *testing.T) {
 	f := func(values, expectedResult []float64) {
@@ -37,6 +201,21 @@ func TestFixBrokenBuckets(t *testing.T) {
 	f([]float64{5, 1, 2, 3, nan}, []float64{1, 1, 2, 3, 3})
 	f([]float64{1, 5, 2, nan, 6, 3}, []float64{1, 2, 2, 3, 3, 3})
 	f([]float64{5, 10, 4, 3}, []float64{3, 3, 3, 3})
+	f([]float64{2,
+		2,
+		3.45484949832,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.47157190635,
+		3.41806020066,
+		3.47157190635,
+		3.47157190635,
+		3.41806020066,
+		3.41806020066,
+		3.41806020066,
+		3.47157190635}, []float64{1, 2, 3, 3, 3})
 }
 
 func TestVmrangeBucketsToLE(t *testing.T) {
