@@ -1241,19 +1241,6 @@ func fixBrokenBuckets2(i int, xss []leTimeseries) {
 			v = vNext
 		}
 	}
-	return
-
-	// Substitute lower bucket values with upper values if the lower values are NaN
-	// or are bigger than the upper bucket values.
-	vNext := xss[len(xss)-1].ts.Values[i]
-	for j := len(xss) - 2; j >= 0; j-- {
-		v := xss[j].ts.Values[i]
-		if math.IsNaN(v) || v > vNext {
-			xss[j].ts.Values[i] = vNext
-		} else {
-			vNext = v
-		}
-	}
 }
 
 func mergeSameLE(xss []leTimeseries) []leTimeseries {
