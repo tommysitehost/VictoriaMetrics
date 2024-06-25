@@ -234,6 +234,43 @@ func (q *Query) String() string {
 	return s
 }
 
+func (q *Query) getStreamIDs() []streamID {
+	switch t := q.f.(type) {
+	case *filterAnd:
+		for _, f := range t.filters {
+			streamIDs, ok := getStreamIDsFromFilterOr(f)
+			if ok {
+				return streamIDs
+			}
+		}
+		return nil
+	default:
+		streamIDs, _ := getStreamIDsFromFilterOr(q.f)
+		return streamIDs
+	}
+}
+
+func getStreamIDsFromFilterOr(f filter) ([]streamID, bool) {
+	switch t := f.(type) {
+	case *filterOr:
+		streamIDsFilters := 0
+		var streamIDs []streamID
+		for _, f := range t.filters {
+			fs, ok := f.(*filterStreamID)
+			if !ok {
+				return nil, false
+			}
+			streamIDsFilters++
+			streamIDs = append(streamIDs, fs.streamIDs...)
+		}
+		return streamIDs, streamIDsFilters > 0
+	case *filterStreamID:
+		return t.streamIDs, true
+	default:
+		return nil, false
+	}
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
@@ -773,6 +810,8 @@ func parseFilterForPhrase(lex *lexer, phrase, fieldName string) (filter, error) 
 	switch fieldName {
 	case "_time":
 		return parseFilterTimeGeneric(lex)
+	case "_stream_id":
+		return parseFilterStreamID(lex)
 	case "_stream":
 		return parseFilterStream(lex)
 	default:
@@ -1780,6 +1819,89 @@ func stripTimezoneSuffix(s string) string {
 		return s
 	}
 	return s[:len(s)-len(tz)]
+}
+
+func parseFilterStreamID(lex *lexer) (filter, error) {
+	if lex.isKeyword("in") {
+		return parseFilterStreamIDIn(lex)
+	}
+
+	sid, err := parseStreamID(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse _stream_id: %w", err)
+	}
+	fs := &filterStreamID{
+		streamIDs: []streamID{sid},
+	}
+	return fs, nil
+}
+
+func parseFilterStreamIDIn(lex *lexer) (filter, error) {
+	if !lex.isKeyword("in") {
+		return nil, fmt.Errorf("unexpected token %q; expecting 'in'", lex.token)
+	}
+
+	// Try parsing in(arg1, ..., argN) at first
+	lexState := lex.backupState()
+	fs, err := parseFuncArgs(lex, "", func(args []string) (filter, error) {
+		streamIDs := make([]streamID, len(args))
+		for i, arg := range args {
+			if !streamIDs[i].tryUnmarshalFromString(arg) {
+				return nil, fmt.Errorf("cannot unmarshal _stream_id from %q", arg)
+			}
+		}
+		fs := &filterStreamID{
+			streamIDs: streamIDs,
+		}
+		return fs, nil
+	})
+	if err == nil {
+		return fs, nil
+	}
+
+	// Try parsing in(query)
+	lex.restoreState(lexState)
+	lex.nextToken()
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '(' after 'in'")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
+	}
+	lex.nextToken()
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+
+	fs = &filterStreamID{
+		needExecuteQuery: true,
+		q:                q,
+		qFieldName:       qFieldName,
+	}
+	return fs, nil
+}
+
+func parseStreamID(lex *lexer) (streamID, error) {
+	var sid streamID
+
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return sid, err
+	}
+
+	if !sid.tryUnmarshalFromString(s) {
+		return sid, fmt.Errorf("cannot unmarshal _stream_id from %q", s)
+	}
+	return sid, nil
 }
 
 func parseFilterStream(lex *lexer) (*filterStream, error) {

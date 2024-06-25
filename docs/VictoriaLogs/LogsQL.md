@@ -427,7 +427,7 @@ See also:
 
 ### Stream filter
 
-VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -456,8 +456,47 @@ Performance tips:
 
 See also:
 
+- [`_stream_id` filter](#_stream_id-filter)
 - [Time filter](#time-filter)
 - [Exact filter](#exact-filter)
+
+### _stream_id filter
+
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
+
+For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+with `_stream_id` equal to `0000007b000001c850d9950ea6196b1a4812081265faa1c7`:
+
+```logsql
+_stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+If the log stream contains too many logs, then it is good idea limiting the number of returned logs with [time filter](#time-filter). For example, the following
+query selects logs for the given stream for the last hour:
+
+```logsql
+_time:1h _stream_id:0000007b000001c850d9950ea6196b1a4812081265faa1c7
+```
+
+The `_stream_id` filter supports specifying multiple `_stream_id` values via `_stream_id:in(...)` syntax. For example:
+
+```logsql
+_stream_id:in(0000007b000001c850d9950ea6196b1a4812081265faa1c7, 1230007b456701c850d9950ea6196b1a4812081265fff2a9)
+```
+
+It is also possible specifying subquery inside `in(...)`, which selects the needed `_stream_id` values. For example, the following query returns
+logs for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `error` [word](#word)
+in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) during the last 5 minutes:
+
+```logsql
+_stream_id:in(_time:5m error | fields _stream_id)
+```
+
+See also:
+
+- [stream filter](#stream-filter)
+
 
 ### Word filter
 
@@ -1790,7 +1829,7 @@ the following query rounds the `request_duration` [field](https://docs.victoriam
 _time:5m | math round(request_duration, 1e9) as request_duration_nsecs | format '<duration:request_duration_nsecs>' as request_duration
 ```
 
-The `eval` keyword can be used instead of `math` for convenince. For example, the following query calculates `duration_msecs` field
+The `eval` keyword can be used instead of `math` for convenience. For example, the following query calculates `duration_msecs` field
 by multiplying `duration_secs` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) to `1000`:
 
 ```logsql
@@ -2532,8 +2571,8 @@ The following fields are unpacked:
 
 The `<PRI>` part is optional. If it is missing, then `priority`, `facility` and `severity` fields aren't set.
 
-The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID` name and `param1="value1" ... paramN="valueN"` value
-according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3). The value then can be parsed to separate fields with [`unpack_logfmt` pipe](#unpack_logfmt-pipe).
+The `[STRUCTURED-DATA]` is parsed into fields with the `SD-ID.param1`, `SD-ID.param2`, ..., `SD-ID.paramN` names and the corresponding values
+according to [the specification](https://datatracker.ietf.org/doc/html/rfc5424#section-6.3).
 
 For example, the following query unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) message from the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across logs for the last 5 minutes:
