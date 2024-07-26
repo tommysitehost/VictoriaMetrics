@@ -87,8 +87,6 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
   only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
   The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) and
   before performing the aggregation.
-  If the `-remoteWrite.streamAggr.config` and / or `-streamAggr.config` is set, then the de-duplication is performed individually per each
-  [stream aggregation config](#stream-aggregation-config) for the matching samples after applying [input_relabel_configs](#relabeling).
 
 - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
   in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.

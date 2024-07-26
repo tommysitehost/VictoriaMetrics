@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flag. Previously, if the `-remoteWrite.streamAggr.config` and / or `-streamAggr.config` is set, only matching samples are deduplicated.
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01
