@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): do not allow to enable `-stream.keepInput` and `keep_metric_names` options together in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config).
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01
