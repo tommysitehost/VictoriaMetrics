@@ -342,7 +342,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 ### How to restore in Kubernetes
 
 1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
-   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) deployments it is required to add:
+   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) deployments it is required to add:
    ```yaml
    vmbackup:
      restore:
@@ -369,7 +369,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 
 #### Restore cluster into another cluster
 
-These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) is used to manage `VMCluster`.
+These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) is used to manage `VMCluster`.
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
