@@ -122,7 +122,7 @@ Connect to grafana and create your datasource
    kubectl --namespace monitoring port-forward service/vm-grafana 3000:80
    ```
    
-1. Open grafana in your browser [http://localhost:3000/datasources](http://localhost:3000/datasources)
+1. Open grafana in your browser `http://localhost:3000/datasources`
    
    Use admin as username and password from previous step
 1. Click on add datasource
@@ -134,5 +134,5 @@ Connect to grafana and create your datasource
 ## Test it
 
 
-- You should be able to see data that was sent to your dbaas using VMAgent dashboard [http://localhost:3000/d/G7Z9GzMGz/victoriametrics-vmagent/](http://localhost:3000/d/G7Z9GzMGz/victoriametrics-vmagent/)
+- You should be able to see data that was sent to your dbaas using VMAgent dashboard `http://localhost:3000/d/G7Z9GzMGz/victoriametrics-vmagent/`
 - You also will be able to see bunch of kubernetes dashboards in your grafana
