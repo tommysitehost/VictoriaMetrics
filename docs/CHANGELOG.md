@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix type of command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals`, to accept multiple values which can be applied to the corresponding `-remoteWrite.url`.
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01
