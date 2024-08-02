@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): use exponential backoff for retries when uploading or downloading data from S3. This should reduce the number of failed uploads and downloads when S3 is temporarily unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6732).
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01
