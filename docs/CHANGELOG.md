@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmalert](./vmalert.md): allow configuring additional headers for each request to notifiers, using command line flag `-notifier.headers` or [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file).
+
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
 Released at 2024-08-01

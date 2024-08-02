@@ -32,14 +32,16 @@ type AlertManager struct {
 }
 
 type metrics struct {
-	alertsSent       *utils.Counter
-	alertsSendErrors *utils.Counter
+	alertsSent             *utils.Counter
+	alertsDroppedByRelabel *utils.Counter
+	alertsSendErrors       *utils.Counter
 }
 
 func newMetrics(addr string) *metrics {
 	return &metrics{
-		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSent:             utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsDroppedByRelabel: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_relabel_dropped_total{addr=%q}", addr)),
+		alertsSendErrors:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
 	}
 }
 
@@ -59,8 +61,22 @@ func (am AlertManager) Addr() string {
 
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
-	am.metrics.alertsSent.Add(len(alerts))
-	err := am.send(ctx, alerts, headers)
+	var sendAlerts []Alert
+	for _, alert := range alerts {
+		labels := alert.toPromLabels(am.relabelConfigs)
+		// drop alert that have no label after relabeling
+		// alertmanager returns error if alert has no label pair
+		if len(labels) == 0 {
+			continue
+		}
+		sendAlerts = append(sendAlerts, alert)
+	}
+	am.metrics.alertsDroppedByRelabel.Add(len(alerts) - len(sendAlerts))
+	if len(sendAlerts) == 0 {
+		return nil
+	}
+	am.metrics.alertsSent.Add(len(sendAlerts))
+	err := am.send(ctx, sendAlerts, headers)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
@@ -76,9 +92,6 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
 
 	if am.timeout > 0 {
 		var cancel context.CancelFunc
@@ -93,6 +106,9 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 		if err != nil {
 			return err
 		}
+	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 	resp, err := am.client.Do(req)
 	if err != nil {
@@ -145,7 +161,9 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 	aCfg, err := utils.AuthConfig(
 		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
 		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams))
+		utils.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
+		utils.WithHeaders(strings.Join(authCfg.Headers, "^^")))
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
